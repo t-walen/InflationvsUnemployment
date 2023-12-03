@@ -1,0 +1,184 @@
+---
+title: "Relationship between Inflation Rates and Unemployment"
+output: 
+  html_notebook: 
+    fig_caption: yes
+    number_sections: yes
+    theme: readable
+    toc: yes
+---
+
+---
+
+# . Introduction
+
+Inflation is essentially the increase in prices of goods, which usually results in lower consumer rates of buying items and overall slower economic growth. When there is slower economic growth, there is less need for labor. When there is less need for labor, there are more workers seeking jobs, than jobs available. There is also less incentive for employers to provide high wages.As a result, when inflation rates are high, it is predicted that unemployment rates will increase. So, does raising inflation rates actually result in an increase in unemployment rates? Unemployment rates seem to increase when inflation rates increase. It is therefore likely that if inflation rates in the US are increased, the unemployment rates in the US will rise. Higher inflation rates can lower need for labor by causing less consumer demand. We, therefore hypothesize that raising inflation rates does increase unemployment levels. If inflation rates increase, then unemployment rates will increase. 
+
+*italics*
+
+**bold**
+
+~~strikethrough~~
+
+Superscript^2^
+
+Subscript~2~
+
+---
+
+# . R environment
+
+```{r}
+library(tidyr)
+library(readr)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(sjPlot)
+library(ggfortify)
+
+install.packages("scales")
+
+
+```
+
+---
+
+# . Data preparation
+
+## . Data description
+
+The first data set is monthly Unemployment rates in the US since 1950, taken as a percentage of unemployed individuals out of the total labor force.The second data set is the monthly inflation rate percentages in the United States since 2010 based on the Treasury Constant Maturity Securities and the Treasury Inflation-Indexed Constant Maturity Securities. Both sets of data are from 
+
+## . Data loading and manipulation
+
+#Read Data 
+```{r}
+
+Unemployment_Rate <- read.csv("UNRATE.csv")
+Inflation_Rate <- read.csv("T30YIEM.csv")
+#New Column to summarize
+```
+
+
+
+```{r}
+
+#Making data the same length
+Unemployment_New <- Unemployment_Rate[Unemployment_Rate$DATE > "2010-01-01" & Unemployment_Rate$DATE < "2022-04-01", ]
+
+#Changing Column Names
+Unemployment_New <- plyr::rename(Unemployment_New, c("UNRATE" = "Unemployment"), )
+Inflation_Rate <- plyr::rename(Inflation_Rate, c("T30YIEM" = "Inflation"), )
+
+#Creating new data set with inflation rate as one variable and unemployment rate as the other and then changing DATE column from character to Date
+
+New_Data <- merge(Inflation_Rate, Unemployment_New, by='DATE')
+
+
+
+```
+
+---
+
+# . Data visualization 
+
+The first plot shows both Unemployment Rate and Inflation Rate over time. The second plot represents Unemployment Rate vs Inflation Rate.
+
+```{r}
+# Some code
+
+library(ggplot2)
+library(scales)
+  ggplot(New_Data, aes(x=DATE))+
+    geom_line(aes( y = Unemployment, group=1), color = "red")+
+    geom_line(aes( y = Inflation, group=1))+
+  xlab('DATE') +
+  ylab('Percent')+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))
+  
+acf(New_Data$Inflation, )
+pacf(New_Data$Inflation, )
+
+acf(New_Data$Unemployment)
+pacf(New_Data$Unemployment)
+
+```
+
+---
+
+# . Data modeling
+```{r}
+Difference_Unemployment <- diff(New_Data$Unemployment, differences=1 )
+Difference_Inflation <- diff(New_Data$Inflation, differences=1)
+
+Differenced_Data <- data.frame(Difference_Inflation, Difference_Unemployment)
+```
+
+## . Model description
+
+The model is linear Regression model of data.
+
+## . Model
+
+The plot will present Unemployment Rate with respect to Inflation Rate and a linear regression line to fit the data.
+
+```{r}
+# Some code
+
+#Plot with linear regression line
+ ggplot(Differenced_Data)+
+        (aes(x=Difference_Inflation, y= Difference_Unemployment))+
+    geom_point(color = "darkred")+
+    geom_smooth(method="lm")+
+  xlab('Inflation Rate')+
+  ylab('Unemployment Rate')
+ 
+ 
+ 
+```
+
+## . Diagnostics
+
+Below is the diagnostics and residual table for the linear fit model.The model visually does not fit the linear regression well. The model also has a low R-squared value indicating that there is a lot of unexplained variability in the model. However, the model does have a p-value under .05 indicating that the relationship presented did not occur by random chance.
+
+
+
+```{r}
+# Some code
+lmDifferencedPercent <- lm(Difference_Inflation ~ Difference_Unemployment, data = Differenced_Data)
+lmDifferencedPercent
+
+```
+
+--- 
+
+# . Results 
+
+## . Model interpretation 
+
+There is some non-linearity in the mean of the residuals as seen in the "Residuals vs Fitted" plot where the blue line curves upwards before becoming flat again. There is also some heteroskedasticity where the residual variance begins to spread more as the fitted values increase.The Q-Q plot shows that the distribution is skewed left as the bottom end of the plot deviates from the straight line. 
+ 
+
+```{r}
+# Some code
+ 
+autoplot(lmDifferencedPercent)
+  theme_minimal()
+```
+
+## . Model visualization
+
+Some text
+```{r echo=TRUE}
+
+confint(lmDifferencedPercent)
+
+```
+```{r}
+plot_model(lmDifferencedPercent, type = "pred", terms = "Difference_Inflation") +
+  geom_point(data = lmDifferencedPercent, mapping = aes(x = Difference_Inflation, y= Difference_Unemployment)) 
+```
+# . Discussion and conclusion
+
+Some text
